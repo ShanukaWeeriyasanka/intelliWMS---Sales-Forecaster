@@ -1,0 +1,17 @@
+sku,category,size,current_stock,lead_time_days,sales_last_7d,sales_last_14d,sales_lag_1,zero_days_last_14d,unit_cost,unit_price,supplier
+JNE3797-KR-M,kurta,M,12,3,15.0,28.0,3.0,4,16.50,38.00,Jaipur Handlooms
+WD-LUXE-042,Western Dress,L,3,5,28.0,52.0,5.0,1,22.50,54.00,Aura Apparel Mills
+TOP-CHIC-S,Top,S,8,3,18.0,34.0,4.0,2,12.00,29.00,Urban Cotton Co
+SET-SILK-XL,Set,XL,2,4,16.0,32.0,3.0,2,28.00,69.00,Royal Heritage Textiles
+ETH-FEST-L,Ethnic Dress,L,28,4,8.0,16.0,1.0,5,26.00,59.00,Heritage Crafts
+SAR-SILK-FREE,Saree,Free,15,3,12.0,22.0,2.0,3,38.00,89.00,Varanasi Silk Guild
+BOT-DENIM-M,Bottom,M,9,6,19.0,38.0,3.0,2,21.00,49.00,Apex Denim Works
+BL-VELVET-S,Blouse,S,4,4,11.0,20.0,2.0,3,14.50,35.00,Elegance Stitch
+WD-FLORAL-M,Western Dress,M,14,4,22.0,42.0,4.0,1,20.00,48.00,Aura Apparel Mills
+SET-LINEN-L,Set,L,6,5,15.0,29.0,3.0,2,27.00,65.00,Royal Heritage Textiles
+BL-EMBR-3XL,Blouse,3XL,68,4,0.5,1.0,0.0,13,15.00,32.00,Elegance Stitch
+SET-FEST-6XL,Set,6XL,44,5,0.0,0.0,0.0,14,29.00,62.00,Royal Heritage Textiles
+WD-WINTER-XS,Western Dress,XS,52,5,0.8,1.5,0.0,12,24.00,52.00,Aura Apparel Mills
+KR-PASTEL-5XL,kurta,5XL,70,3,0.4,1.0,0.0,13,17.00,36.00,Jaipur Handlooms
+BOT-FLARE-XS,Bottom,XS,38,5,0.6,1.2,0.0,11,19.00,42.00,Apex Denim Works
+SAR-HEAVY-FREE,Saree,Free,26,7,0.2,0.5,0.0,14,42.00,95.00,Varanasi Silk Guild

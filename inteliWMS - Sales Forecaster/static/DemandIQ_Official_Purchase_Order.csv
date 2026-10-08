@@ -1,0 +1,2 @@
+Purchase Order ID,Supplier Name,SKU Code,Category,Size,Current Stock,Reorder Point,Recommended PO Qty,Unit Cost ($),Total PO Cost ($),Lead Time (Days),Urgency Level
+PO-2026-KND-001,Aura Apparel Mills,WD-LUXE-042,Western Dress,L,3,14.2,45,22.50,1012.50,5,CRITICAL

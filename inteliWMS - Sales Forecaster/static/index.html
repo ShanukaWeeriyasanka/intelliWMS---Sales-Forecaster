@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DemandIQ • Demand Visualisation</title>
+  <meta name="description" content="DemandIQ turns an XGBoost 7-day demand forecast into live inventory decisions: demand flow, reorder planning and dead-stock detection." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">DEMANDIQ</span>
+    </div>
+
+    <div class="search" id="searchBox">
+      <input id="skuSearch" type="text" placeholder="Search SKU or category" autocomplete="off" aria-label="Search SKU or category" />
+      <i data-lucide="search" class="ico"></i>
+      <div id="searchResults" class="search-results hidden"></div>
+    </div>
+
+    <nav class="nav" aria-label="Primary">
+      <button class="nav-tab active" id="tab-btn-overview" data-tab="overview">Overview</button>
+      <button class="nav-tab" id="tab-btn-forecaster" data-tab="forecaster">Forecaster</button>
+      <button class="nav-tab" id="tab-btn-procurement" data-tab="procurement">Procurement<span class="dot" id="poDot"></span></button>
+      <button class="nav-tab" id="tab-btn-clearance" data-tab="clearance">Dead Stock</button>
+    </nav>
+
+    <div class="top-actions">
+      <button class="icon-btn" id="btnUpload" title="Upload inventory dataset"><i data-lucide="upload"></i></button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN ================= -->
+  <main class="layout">
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="view view-overview active" id="view-overview">
+
+      <aside class="sidebar" aria-label="Key figures">
+        <!-- Card 1 -->
+        <section class="card" id="cardForecast">
+          <div class="kpi-label" id="fcCardLabel">Forecast revenue · 3M</div>
+          <div class="kpi-value mono">
+            <span class="num" id="fcCardValue">$0</span>
+            <span class="delta up" id="fcCardDelta"></span>
+          </div>
+          <div class="kpi-sub" id="fcCardSub">&nbsp;</div>
+        </section>
+
+        <!-- Card 2 -->
+        <section class="card card-center" id="cardHealth">
+          <div class="donut-wrap">
+            <svg viewBox="0 0 140 140" aria-hidden="true">
+              <circle class="track" cx="70" cy="70" r="60"></circle>
+              <circle class="track" cx="70" cy="70" r="49"></circle>
+              <circle class="track" cx="70" cy="70" r="38"></circle>
+              <circle class="arc" id="ringHealthy" cx="70" cy="70" r="60" stroke="#30d158" stroke-dasharray="376.99" stroke-dashoffset="376.99"></circle>
+              <circle class="arc" id="ringReorder" cx="70" cy="70" r="49" stroke="#f59e0b" stroke-dasharray="307.9" stroke-dashoffset="307.9"></circle>
+              <circle class="arc" id="ringCritical" cx="70" cy="70" r="38" stroke="#ff453a" stroke-dasharray="238.76" stroke-dashoffset="238.76"></circle>
+            </svg>
+            <div class="donut-center"><span class="core"><i data-lucide="package"></i></span></div>
+          </div>
+          <div class="kpi-label">Stock on hand</div>
+          <div class="kpi-value mono"><span class="num" id="stockValue">$0</span><span class="delta up" id="healthDelta"></span></div>
+
+          <div class="cat-table" id="catTable">
+            <div class="cat-head"><span>Category</span><span>Fcst</span><span>Stock</span></div>
+          </div>
+        </section>
+
+        <!-- Card 3 -->
+        <section class="card" id="cardReorder" style="cursor:pointer" title="Open procurement queue">
+          <div class="kpi-label">Reorder plan</div>
+          <div class="kpi-value mono">
+            <span class="num" id="reorderValue">$0</span>
+            <span class="delta" id="reorderDelta"></span>
+          </div>
+          <div class="kpi-sub" id="reorderSub">&nbsp;</div>
+        </section>
+      </aside>
+
+      <!-- ===== Hero panel ===== -->
+      <section class="panel" aria-label="Demand flow">
+        <div class="panel-head">
+          <div class="timeline-label">Model Horizon</div>
+          <div class="timeline" id="timeline" role="tablist" aria-label="Forecast Window">
+            <button data-tl="7D" role="tab" class="active">7-Day Forecast</button>
+            <button data-tl="METRICS" role="tab" id="btnShowMetrics">Model Metrics (R² 0.535)</button>
+          </div>
+          <h1 class="panel-title">Demand visualisation</h1>
+          <div class="panel-sub" id="panelSub">Pre-trained Tuned XGBoost Regressor (31 Features) predicting next 7-day demand (next_7d_sales_qty)</div>
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="stage-inner" id="stageInner">
+            <svg id="flowSvg" aria-hidden="true">
+              <defs id="flowDefs"></defs>
+              <g id="ribbons"></g>
+            </svg>
+            <div id="leftLabels"></div>
+            <div class="hub" id="hub">
+              <div class="hub-content">
+                <span class="hub-icon"><i data-lucide="bar-chart-3"></i></span>
+                <span class="hub-sku mono" id="hubSku" style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:0.04em;display:none;"></span>
+                <span class="hub-label" id="hubLabel">Total 7-day demand</span>
+                <span class="hub-number mono" id="hubNumber">0</span>
+                <span class="hub-rev mono" id="hubRev">$0</span>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+                  <span class="hub-pill watch" id="hubPill">WATCH</span>
+                  <button id="btnResetCenter" class="hub-reset-btn" title="Reset dataset &amp; view to original default 16 benchmark SKUs">
+                    <i data-lucide="rotate-ccw"></i><span>Reset</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div id="rightLabels"></div>
+          </div>
+        </div>
+
+        <div class="strip">
+          <div class="mini">
+            <span class="mini-icon"><i data-lucide="bar-chart-2"></i></span>
+            <div class="mini-text"><small>Prediction</small><b class="mono" id="miniPred">0</b></div>
+            <div class="mini-viz">
+              <svg class="spark" id="sparkSvg" viewBox="0 0 110 30" preserveAspectRatio="none"></svg>
+              <span class="mini-pct mono" id="miniRisk">0%</span>
+            </div>
+          </div>
+          <div class="mini">
+            <span class="mini-icon"><i data-lucide="target"></i></span>
+            <div class="mini-text"><small>Pulse</small><b class="mono" id="miniPulse">0</b></div>
+            <div class="mini-viz"><div class="bars" id="pulseBars"></div></div>
+          </div>
+          <div class="mini">
+            <span class="mini-icon"><i data-lucide="activity"></i></span>
+            <div class="mini-text"><small>Activity</small><b class="mono" id="miniActivity">0</b></div>
+            <div class="mini-viz"><div class="segbar" id="segBar"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== FORECASTER ===== -->
+    <div class="view" id="view-forecaster">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h2>SKU forecaster</h2>
+            <p>Adjust inputs and the XGBoost model re-predicts the next 7 days of demand.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+              <label for="skuPicker">Target SKU</label>
+              <select id="skuPicker"></select>
+            </div>
+            <span class="badge healthy" id="fcVerdict">Healthy</span>
+          </div>
+        </div>
+
+        <div class="fc-grid">
+          <section class="card" style="transform:none">
+            <div class="kpi-label" style="font-weight:600;color:var(--ink-2)">Simulation inputs</div>
+            <div class="form-grid" style="margin-top:12px">
+              <div class="field"><label for="fcCategory">Category</label>
+                <select id="fcCategory">
+                  <option>Western Dress</option><option>kurta</option><option>Set</option><option>Top</option>
+                  <option>Ethnic Dress</option><option>Blouse</option><option>Bottom</option><option>Saree</option>
+                </select>
+              </div>
+              <div class="field"><label for="fcSize">Size</label>
+                <select id="fcSize">
+                  <option>M</option><option>L</option><option>XL</option><option>S</option><option>XXL</option>
+                  <option>3XL</option><option>4XL</option><option>5XL</option><option>6XL</option><option>XS</option><option>Free</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="slider-block"><div class="slider-head"><span>Current stock</span><span class="chip mono" id="lblStock">12 units</span></div>
+              <input type="range" id="slStock" min="0" max="250" value="12" /></div>
+            <div class="slider-block"><div class="slider-head"><span>Supplier lead time</span><span class="chip mono" id="lblLead">3 days</span></div>
+              <input type="range" id="slLead" min="1" max="14" value="3" /></div>
+            <div class="slider-block"><div class="slider-head"><span>Units sold, last 7 days</span><span class="chip mono" id="lblS7">18 units</span></div>
+              <input type="range" id="slS7" min="0" max="120" value="18" /></div>
+            <div class="slider-block"><div class="slider-head"><span>Zero-sale days, last 14</span><span class="chip mono" id="lblZero">2 days</span></div>
+              <input type="range" id="slZero" min="0" max="14" value="2" /></div>
+
+            <div class="form-grid" style="margin-top:16px">
+              <div class="field"><label for="fcUnitCost">Unit cost (Rs.)</label><input type="number" id="fcUnitCost" value="18.00" step="0.5" /></div>
+              <div class="field"><label for="fcUnitPrice">Retail price (Rs.)</label><input type="number" id="fcUnitPrice" value="42.00" step="0.5" /></div>
+            </div>
+
+            <div style="margin-top:18px;display:flex;gap:10px;">
+              <button class="btn primary" id="btnAnalyzeFlow" style="width:100%;justify-content:center;padding:10px 18px;">
+                <i data-lucide="activity"></i><span>Analyze &amp; View in Overview Flow</span>
+              </button>
+            </div>
+          </section>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <section class="card" style="transform:none">
+              <div class="fc-head">
+                <span class="badge low mono" id="fcSku" style="background:rgba(255,255,255,0.06);color:var(--text-primary,#fff)">—</span>
+                <span class="advice" id="fcAdvice">Waiting for model…</span>
+              </div>
+              <div class="metric-grid">
+                <div class="metric"><small>7-day forecast</small><b class="mono" id="fcForecast">—</b><em>units / week</em></div>
+                <div class="metric"><small>Reorder point</small><b class="mono" id="fcRop">—</b><em>units</em></div>
+                <div class="metric hl"><small>Stock runway</small><b class="mono" id="fcRunway">—</b><em>days of cover</em></div>
+                <div class="metric hl-pink"><small>Order qty</small><b class="mono" id="fcQty">—</b><em>units</em></div>
+              </div>
+              <div class="range-note mono" id="fcNote"></div>
+            </section>
+
+            <section class="card" style="transform:none">
+              <div class="kpi-label" style="font-weight:600;color:var(--ink-2);margin-bottom:18px">Projected stock, next 7 days</div>
+              <div class="curve" id="curve"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROCUREMENT ===== -->
+    <div class="view" id="view-procurement">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h2>Procurement queue</h2>
+            <p>SKUs whose stock is below the model-derived reorder point, most urgent first.</p>
+          </div>
+          <a class="btn primary" href="/api/download-po-csv" download><i data-lucide="download"></i><span>Download PO (CSV)</span></a>
+        </div>
+        <div class="grid-4">
+          <div class="card stat" style="--c:var(--blue-soft)"><span class="accent"></span><div class="kpi-label">PO capital required</div><div class="kpi-value mono"><span id="poCap">$0</span></div><div class="kpi-sub" id="poSkus">0 SKUs</div></div>
+          <div class="card stat" style="--c:var(--coral)"><span class="accent"></span><div class="kpi-label">Critical stockouts</div><div class="kpi-value mono"><span id="poCrit">0</span></div><div class="kpi-sub">stock ≤ demand in lead time</div></div>
+          <div class="card stat" style="--c:var(--violet)"><span class="accent"></span><div class="kpi-label">Units to order</div><div class="kpi-value mono"><span id="poUnits">0</span></div></div>
+          <div class="card stat" style="--c:var(--orange)"><span class="accent"></span><div class="kpi-label">Avg supplier lead time</div><div class="kpi-value mono"><span id="poLead">0 d</span></div></div>
+        </div>
+        <section class="card" style="transform:none">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>SKU</th><th>Category</th><th class="num">Stock</th><th class="num">Reorder pt</th><th class="num">Runway</th><th class="num">Order</th><th class="num">Unit cost</th><th class="num">PO cost</th><th>Urgency</th></tr></thead>
+              <tbody id="poBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ===== DEAD STOCK ===== -->
+    <div class="view" id="view-clearance">
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h2>Dead stock</h2>
+            <p>Slow movers: idle 10+ days of 14, forecast under 1 unit, or 60+ days of cover.</p>
+          </div>
+          <button class="btn warn" id="btnBulk"><i data-lucide="tag"></i><span>Apply bulk markdown</span></button>
+        </div>
+        <div class="grid-4">
+          <div class="card stat" style="--c:var(--coral)"><span class="accent"></span><div class="kpi-label">Monthly FBA drain</div><div class="kpi-value mono"><span id="clDrain">$0</span></div></div>
+          <div class="card stat" style="--c:var(--orange)"><span class="accent"></span><div class="kpi-label">Capital locked</div><div class="kpi-value mono"><span id="clLocked">$0</span></div></div>
+          <div class="card stat" style="--c:var(--violet)"><span class="accent"></span><div class="kpi-label">Idle units</div><div class="kpi-value mono"><span id="clIdle">0</span></div></div>
+          <div class="card stat" style="--c:var(--sky)"><span class="accent"></span><div class="kpi-label">Clearance SKUs</div><div class="kpi-value mono"><span id="clCount">0</span></div><div class="kpi-sub" id="clAvgIdle"></div></div>
+        </div>
+        <section class="card" style="transform:none">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>SKU</th><th>Category</th><th>Idle days (14d)</th><th class="num">Stock</th><th class="num">FBA fee</th><th>Suggested action</th><th class="num">Execute</th></tr></thead>
+              <tbody id="clBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <span>DemandIQ · Demand visualisation</span>
+    <span id="footMeta">XGBoost demand model</span>
+  </footer>
+</div>
+
+<!-- ================= UPLOAD MODAL ================= -->
+<div class="modal-back hidden" id="uploadModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Upload inventory dataset">
+    <div class="modal-head">
+      <h3>Upload inventory dataset</h3>
+      <button class="icon-btn" id="btnCloseUpload" aria-label="Close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="drop" id="dropZone">
+      <div class="ic"><i data-lucide="upload-cloud"></i></div>
+      <b>Click to select a file or drag &amp; drop</b>
+      <small>CSV, Excel (.xlsx/.xls), PDF (.pdf), Word (.docx), Markdown (.md), Text (.txt), Scans (.png/.jpg)</small>
+    </div>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.pdf,.docx,.md,.txt,.png,.jpg,.jpeg" class="hidden" />
+
+    <!-- Granular 0% -> 100% Progress Tracker Card -->
+    <div class="upload-progress-card hidden" id="uploadProgressCard">
+      <div class="up-meta">
+        <div class="up-file-info">
+          <div class="up-file-icon" id="upFileIcon"><i data-lucide="file-spreadsheet"></i></div>
+          <div style="min-width:0">
+            <div class="up-filename mono" id="upFileName">inventory_data.csv</div>
+            <div class="up-filesize mono" id="upFileSize">0 KB · Initializing pipeline…</div>
+          </div>
+        </div>
+        <div class="up-percent mono" id="upPercent">0%</div>
+      </div>
+
+      <!-- Animated Progress Bar -->
+      <div class="up-bar-track">
+        <div class="up-bar-fill" id="upBarFill" style="width: 0%"></div>
+      </div>
+
+      <!-- Live Pipeline Execution Steps -->
+      <div class="up-steps" id="upSteps">
+        <div class="up-step" id="upStep1">
+          <span class="up-icon">1</span>
+          <div class="up-step-body">
+            <span class="up-step-title">Byte streaming &amp; checksum integrity</span>
+            <small class="up-step-sub" id="upStep1Sub">Pending…</small>
+          </div>
+          <span class="up-step-badge mono" id="upStep1Badge">0%</span>
+        </div>
+
+        <div class="up-step" id="upStep2">
+          <span class="up-icon">2</span>
+          <div class="up-step-body">
+            <span class="up-step-title">Document layout &amp; table extraction (PDF / Excel / OCR)</span>
+            <small class="up-step-sub" id="upStep2Sub">Waiting…</small>
+          </div>
+          <span class="up-step-badge mono" id="upStep2Badge">0%</span>
+        </div>
+
+        <div class="up-step" id="upStep3">
+          <span class="up-icon">3</span>
+          <div class="up-step-body">
+            <span class="up-step-title">Schema mapping &amp; feature normalization (31 features)</span>
+            <small class="up-step-sub" id="upStep3Sub">Waiting…</small>
+          </div>
+          <span class="up-step-badge mono" id="upStep3Badge">0%</span>
+        </div>
+
+        <div class="up-step" id="upStep4">
+          <span class="up-icon">4</span>
+          <div class="up-step-body">
+            <span class="up-step-title">XGBoost 7-day demand forecasting &amp; replenishment</span>
+            <small class="up-step-sub" id="upStep4Sub">Waiting…</small>
+          </div>
+          <span class="up-step-badge mono" id="upStep4Badge">0%</span>
+        </div>
+
+        <div class="up-step" id="upStep5">
+          <span class="up-icon">5</span>
+          <div class="up-step-body">
+            <span class="up-step-title">Synthesizing ORION Sankey flow &amp; refreshing views</span>
+            <small class="up-step-sub" id="upStep5Sub">Waiting…</small>
+          </div>
+          <span class="up-step-badge mono" id="upStep5Badge">0%</span>
+        </div>
+      </div>
+
+      <div class="up-result hidden" id="upResult"></div>
+      <button class="btn soft hidden" id="upBtnRetry" style="width:100%;justify-content:center;margin-top:6px;"><i data-lucide="rotate-cw"></i><span>Upload another file</span></button>
+    </div>
+
+    <div class="templates" id="templatesRow">
+      <span>Sample Templates</span>
+      <div>
+        <a href="/static/sample_inventory.csv" download>CSV</a>
+        <a href="/static/sample_inventory.xlsx" download>Excel</a>
+        <a href="/static/sample_inventory.pdf" download>PDF</a>
+        <a href="/static/sample_inventory.docx" download>Word</a>
+        <a href="/static/sample_inventory.md" download>Markdown</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><i data-lucide="check-circle-2"></i><span id="toastMsg">Done</span></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
