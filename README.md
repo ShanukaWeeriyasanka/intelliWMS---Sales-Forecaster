@@ -11,8 +11,8 @@ Production-ready e-commerce demand forecasting and inventory replenishment engin
 ## 🛠️ Quickstart
 
 ```bash
-git clone <YOUR-REPO-LINK>
-cd <YOUR-REPO-NAME>
+git clone https://github.com/ShanukaWeeriyasanka/intelliWMS---Sales-Forecaster.git
+cd intelliWMS - Sales Forecaster
 
 python -m venv venv
 # Windows:
